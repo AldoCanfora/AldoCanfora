@@ -1,4 +1,4 @@
-name: generate pacman contribution graph
+name: generate profile assets
 
 on:
   # run automatically every day at 3:00 am (UTC)
@@ -27,6 +27,44 @@ jobs:
         with:
           github_user_name: ${{ github.repository_owner }}
           games: 'pacman'
+
+      # ── GitHub Stats Extended ────────────────────────────────────
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          path: repo
+
+      - name: Generate stats cards
+        run: |
+          README_FILE="$GITHUB_WORKSPACE/repo/README.md"
+          OUT="$GITHUB_WORKSPACE/dist"
+          BASE="https://github-stats-extended.vercel.app"
+          USER="${{ github.repository_owner }}"
+          mkdir -p "$OUT"
+
+          fetch() {
+            # keep the card only if the service answered with an SVG
+            curl -sf --retry 3 "$1" -o "$2.tmp" && grep -q "<svg" "$2.tmp" && mv "$2.tmp" "$2" || rm -f "$2.tmp"
+          }
+
+          # ── Stats card ──
+          fetch "$BASE/api?username=$USER&show_icons=true&theme=dark" "$OUT/stats-dark.svg"
+          fetch "$BASE/api?username=$USER&show_icons=true&theme=default" "$OUT/stats-light.svg"
+
+          # ── Top languages ──
+          fetch "$BASE/api/top-langs/?username=$USER&hide=TeX%2CCSS%2CHTML%2Cjupyter%20notebook&layout=compact&theme=dark" "$OUT/top-langs-dark.svg"
+          fetch "$BASE/api/top-langs/?username=$USER&hide=TeX%2CCSS%2CHTML%2Cjupyter%20notebook&layout=compact&theme=default" "$OUT/top-langs-light.svg"
+
+          # ── Pin cards (repos listed in README) ──
+          sed -n '/^## Maintained Works$/,/^## /p' "$README_FILE" \
+            | grep -oE 'https://github\.com/[^" ]+' \
+            | awk -F/ 'BEGIN { OFS = " " } { print $(NF - 1), $NF }' \
+            | sort -u \
+            | while read -r owner repo; do
+              fetch "$BASE/api/pin/?username=$owner&repo=$repo&title_color=fff&icon_color=79ff97&text_color=9f9f9f&bg_color=151515" "$OUT/pin-$repo-dark.svg"
+              fetch "$BASE/api/pin/?username=$owner&repo=$repo&theme=default" "$OUT/pin-$repo-light.svg"
+          done
+          ls -la "$OUT"
 
       # Available at https://raw.githubusercontent.com/<user>/<repo>/output/<file>
       - name: push SVGs to the output branch
