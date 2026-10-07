@@ -5,3 +5,5 @@
     <img alt="Pac-Man eating my GitHub contribution graph" src="https://raw.githubusercontent.com/AldoCanfora/AldoCanfora/output/pacman-contribution-graph.svg">
   </picture>
 </p>
+
+<!-- profile README -->
